@@ -1,0 +1,71 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        bangers: ['Bangers', 'cursive'],
+        caveat: ['Caveat', 'cursive'],
+        klee: ['"Klee One"', 'cursive'],
+        elite: ['"Special Elite"', 'cursive'],
+      },
+      colors: {
+        ink: '#111111',
+        ink2: '#333333',
+        ink3: '#666666',
+        paper: '#faf8f3',
+        paper2: '#f0ece0',
+        paper3: '#e4dece',
+        blush: '#fdeef4',
+        sky: '#eef4fd',
+        mint: '#edf7ef',
+      },
+      boxShadow: {
+        comic: '4px 4px 0 #111',
+        'comic-sm': '2px 2px 0 #111',
+        'comic-lg': '7px 7px 0 #111',
+        'comic-xl': '12px 12px 0 #111',
+      },
+      keyframes: {
+        popIn: { '0%': { opacity: 0, transform: 'scale(0.5) rotate(-6deg)' }, '70%': { transform: 'scale(1.08) rotate(1deg)' }, '100%': { opacity: 1, transform: 'scale(1) rotate(0)' } },
+        floatY: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+        floatY2: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
+        wiggle: { '0%,100%': { transform: 'rotate(0)' }, '25%': { transform: 'rotate(-10deg)' }, '75%': { transform: 'rotate(10deg)' } },
+        slideRight: { from: { opacity: 0, transform: 'translateX(60px)' }, to: { opacity: 1, transform: 'translateX(0)' } },
+        slideLeft: { from: { opacity: 0, transform: 'translateX(-60px)' }, to: { opacity: 1, transform: 'translateX(0)' } },
+        slideUp: { from: { opacity: 0, transform: 'translateY(30px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+        bounceIn: { '0%': { transform: 'scale(0.6)' }, '60%': { transform: 'scale(1.12)' }, '80%': { transform: 'scale(0.96)' }, '100%': { transform: 'scale(1)' } },
+        flashIn: { '0%': { opacity: 1 }, '100%': { opacity: 0 } },
+        countPop: { '0%': { transform: 'scale(0.2)', opacity: 0 }, '50%': { transform: 'scale(1.3)', opacity: 1 }, '75%': { transform: 'scale(0.9)' }, '100%': { transform: 'scale(1)' } },
+        dotBounce: { '0%,80%,100%': { transform: 'scale(0)' }, '40%': { transform: 'scale(1)' } },
+        shimmer: { '0%': { backgroundPosition: '-300% 0' }, '100%': { backgroundPosition: '300% 0' } },
+        scanLine: { '0%': { top: '-10%' }, '100%': { top: '110%' } },
+        enterBounce: { '0%': { opacity: 0, transform: 'scale(0.85) translateY(30px)' }, '60%': { transform: 'scale(1.04) translateY(-5px)' }, '100%': { opacity: 1, transform: 'scale(1) translateY(0)' } },
+        heartPop: { '0%': { transform: 'scale(0) rotate(-20deg)' }, '60%': { transform: 'scale(1.4)' }, '100%': { transform: 'scale(1)' } },
+        spinStar: { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
+        typewriter: { from: { clipPath: 'inset(0 100% 0 0)' }, to: { clipPath: 'inset(0 0% 0 0)' } },
+      },
+      animation: {
+        'pop': 'popIn 0.45s cubic-bezier(.34,1.56,.64,1) both',
+        'float': 'floatY 3s ease-in-out infinite',
+        'float2': 'floatY2 2.5s ease-in-out infinite',
+        'wiggle': 'wiggle 0.6s ease-in-out infinite',
+        'slide-r': 'slideRight 0.45s cubic-bezier(.25,.8,.25,1) both',
+        'slide-l': 'slideLeft 0.45s cubic-bezier(.25,.8,.25,1) both',
+        'slide-u': 'slideUp 0.4s cubic-bezier(.25,.8,.25,1) both',
+        'bounce-in': 'bounceIn 0.5s ease both',
+        'flash': 'flashIn 0.2s ease forwards',
+        'count-pop': 'countPop 0.35s cubic-bezier(.34,1.56,.64,1) both',
+        'dot1': 'dotBounce 1.1s ease-in-out 0s infinite',
+        'dot2': 'dotBounce 1.1s ease-in-out 0.18s infinite',
+        'dot3': 'dotBounce 1.1s ease-in-out 0.36s infinite',
+        'scan': 'scanLine 2.5s linear infinite',
+        'enter': 'enterBounce 0.6s cubic-bezier(.34,1.56,.64,1) both',
+        'heart': 'heartPop 0.4s cubic-bezier(.34,1.56,.64,1) both',
+        'spin-star': 'spinStar 8s linear infinite',
+        'typewriter': 'typewriter 1.2s steps(20) both',
+      }
+    }
+  },
+  plugins: []
+}
