@@ -55,7 +55,11 @@ function UploadZone({ onUpload, disabled }) {
     <div
       className={`upload-zone w-full text-center py-3 px-4 ${drag ? 'drag-over' : ''} ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
       onClick={() => fileRef.current?.click()}
-      onDragOver={e => { e.preventDefault(); setDrag(true) }}
+      onDragOver={(e) => {
+      if (e.cancelable) e.preventDefault()
+      setDrag(true)
+      }}
+
       onDragLeave={() => setDrag(false)}
       onDrop={e => { e.preventDefault(); setDrag(false); onUpload(e.dataTransfer.files) }}
     >

@@ -146,6 +146,7 @@ export default function Strip({
             fontSize: `${s.size}rem`,
             transform: `rotate(${s.rotate}deg)`,
             zIndex: activeSticker === s.id ? 50 : 20,
+            touchAction: "none"
           }}
         >
           {s.emoji}
