@@ -1,82 +1,79 @@
 import { useState, useRef, useEffect } from 'react'
 import { usePhotos } from '../hooks/usePhotos.js'
 import {
-  FILTERS, FRAMES, BG_OPTIONS, STICKERS,
+  FRAMES, BG_OPTIONS, STICKERS,
   HEADER_BG_COLORS, HEADER_TEXT_COLORS, DATE_STR,
 } from '../utils/constants.js'
 import { PillBtn, SectionHead, ComicCard, TextInput, SliderRow, DotLoader } from './UI.jsx'
 import Strip from './Strip.jsx'
 import Bunny from './Bunny.jsx'
 
-const MOBILE_CSS = `
+/* ─────────────────────────────────────────────
+   Global styles injected once.
+   Key rules:
+   • preview col is a FIXED pixel width — never stretches
+   • panels col gets all remaining space
+   • sliders never overflow their cards
+   • page scroll is never blocked
+───────────────────────────────────────────── */
+const GLOBAL_CSS = `
+  /* ── Base: strip preview col is always fixed width ── */
+  .studio-preview-col {
+    flex-shrink: 0;
+  }
+
+  /* ── Mobile (≤ 700 px) ── */
   @media (max-width: 700px) {
     .studio-layout {
       flex-direction: column !important;
       align-items: center !important;
-      gap: 20px !important;
+      gap: 16px !important;
     }
     .studio-preview-col {
       position: static !important;
-      width: 220px !important;
-      min-width: 220px !important;
-      max-width: 220px !important;
-      flex-shrink: 0 !important;
-    }
-    .studio-preview-label {
-      font-size: 0.7rem !important;
+      width: 200px !important;
+      min-width: 200px !important;
+      max-width: 200px !important;
     }
     .studio-panels-col {
       width: 100% !important;
       max-width: 100% !important;
       flex: unset !important;
+      min-width: 0 !important;
     }
     .studio-title {
-      font-size: 2rem !important;
+      font-size: 1.9rem !important;
       letter-spacing: 3px !important;
     }
     .sticker-grid {
       grid-template-columns: repeat(6, 1fr) !important;
     }
-    .sticker-fine-tune input[type=range] {
-      height: 28px !important;
-    }
     .studio-main {
-      padding: 1rem 0.5rem !important;
-    }
-    .studio-panels-col .pill-btn {
-      font-size: 0.78rem !important;
-      padding: 0.3rem 0.7rem !important;
-    }
-    .studio-panels-col .swatch-dot {
-      width: 24px !important;
-      height: 24px !important;
-    }
-    .studio-goto-btn {
-      width: 100% !important;
-      max-width: 280px !important;
+      padding: 0.9rem 0.6rem !important;
     }
   }
 
+  /* ── Very small phones (≤ 380 px) ── */
   @media (max-width: 380px) {
+    .studio-preview-col {
+      width: 175px !important;
+      min-width: 175px !important;
+      max-width: 175px !important;
+    }
     .studio-title {
       font-size: 1.5rem !important;
       letter-spacing: 2px !important;
-    }
-    .studio-preview-col {
-      width: 190px !important;
-      min-width: 190px !important;
-      max-width: 190px !important;
     }
     .sticker-grid {
       grid-template-columns: repeat(5, 1fr) !important;
     }
     .studio-main {
-      padding: 0.75rem 0.35rem !important;
+      padding: 0.6rem 0.35rem !important;
     }
   }
 
+  /* ── Tablet (701 – 900 px) ── */
   @media (min-width: 701px) and (max-width: 900px) {
-    .studio-layout { gap: 20px !important; }
     .studio-preview-col {
       position: sticky !important;
       top: 16px !important;
@@ -90,27 +87,39 @@ const MOBILE_CSS = `
     }
   }
 
+  /* ── Prevent range inputs overflowing cards on any device ── */
+  .studio-panels-col input[type=range] {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ── Larger touch target for range inputs on touch devices ── */
   @media (pointer: coarse) {
-    input[type=range] { height: 30px !important; }
+    input[type=range] {
+      height: 32px !important;
+    }
   }
 `
 
-function useStudioStyles() {
+function useGlobalStyles() {
   useEffect(() => {
-    const id = 'studio-mobile-css'
+    const id = 'pico-studio-css'
     if (document.getElementById(id)) return
     const tag = document.createElement('style')
     tag.id = id
-    tag.textContent = MOBILE_CSS
+    tag.textContent = GLOBAL_CSS
     document.head.appendChild(tag)
   }, [])
 }
 
-/* ── ONE source of truth for strip width ── */
-const STRIP_W = 220
+/* ── Single source of truth for strip/button width ──
+   Strip.jsx now uses width:100% so it fills this exactly. */
+const STRIP_W = 200   // px — matches the mobile CSS above
 
 export default function StudioPage({ navigate, bw }) {
-  useStudioStyles()
+  useGlobalStyles()
 
   const [photos] = usePhotos()
 
@@ -132,14 +141,15 @@ export default function StudioPage({ navigate, bw }) {
   const [downloaded,  setDownloaded]  = useState(false)
 
   const stripRef = useRef(null)
-  const dragInfo = useRef(null)
+  const dragInfo = useRef(null)  // null = idle | { id, offX, offY } = dragging
 
+  /* ── Sticker helpers ── */
   const addSticker = (emoji) => {
     setStickers(prev => [...prev, {
       id: Date.now() + Math.random(),
       emoji,
-      x: 15 + Math.random() * 140,
-      y: 40 + Math.random() * 250,
+      x: 15 + Math.random() * 100,
+      y: 40  + Math.random() * 200,
       size: 2.0,
       rotate: 0,
     }])
@@ -157,27 +167,38 @@ export default function StudioPage({ navigate, bw }) {
 
   useEffect(() => {
     const onMove = (e) => {
+      /* ── CRITICAL: only intercept scroll when a sticker is being dragged ── */
+      if (!dragInfo.current) return
       if (e.cancelable) e.preventDefault()
-      if (!dragInfo.current || !stripRef.current) return
+      if (!stripRef.current) return
+
       const rect = stripRef.current.getBoundingClientRect()
       const cx = e.touches ? e.touches[0].clientX : e.clientX
       const cy = e.touches ? e.touches[0].clientY : e.clientY
-      const x = cx - rect.left - dragInfo.current.offX
-      const y = cy - rect.top - dragInfo.current.offY
+      const x  = cx - rect.left - dragInfo.current.offX
+      const y  = cy - rect.top  - dragInfo.current.offY
+
       setStickers(prev =>
-        prev.map(s => s.id === dragInfo.current.id ? { ...s, x, y } : s)
-      )
+  prev.filter(Boolean).map(s =>
+    s.id === dragInfo.current.id ? { ...s, x, y } : s
+  )
+)
     }
+
     const onUp = () => { dragInfo.current = null; setActive(null) }
-    window.addEventListener('mousemove',  onMove)
-    window.addEventListener('mouseup',    onUp)
-    window.addEventListener('touchmove',  onMove, { passive: false })
-    window.addEventListener('touchend',   onUp)
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
+    /* passive:false needed so preventDefault() can fire WHEN dragging;
+       but we only reach preventDefault if dragInfo.current !== null */
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend',  onUp)
+
     return () => {
-      window.removeEventListener('mousemove',  onMove)
-      window.removeEventListener('mouseup',    onUp)
-      window.removeEventListener('touchmove',  onMove)
-      window.removeEventListener('touchend',   onUp)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup',   onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend',  onUp)
     }
   }, [])
 
@@ -185,14 +206,15 @@ export default function StudioPage({ navigate, bw }) {
   const updateSticker = (id, patch) => setStickers(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
   const clearStickers = () => setStickers([])
 
+  /* ── Download ── */
   const downloadStrip = async () => {
     if (downloading) return
     setDownloading(true)
     try {
       const html2canvas = (await import('html2canvas')).default
-      const element = stripRef.current
-      const rect    = element.getBoundingClientRect()
-      const canvas  = await html2canvas(element, {
+      const el   = stripRef.current
+      const rect = el.getBoundingClientRect()
+      const canvas = await html2canvas(el, {
         scale: 3,
         useCORS: true,
         backgroundColor: '#ffffff',
@@ -207,14 +229,14 @@ export default function StudioPage({ navigate, bw }) {
       setTimeout(() => setDownloaded(false), 3000)
     } catch (err) {
       console.error(err)
-      alert('Download failed')
+      alert('Download failed — try on desktop if this persists.')
     }
     setDownloading(false)
   }
 
   const globalFilter = bw ? 'grayscale(1) contrast(1.1)' : 'none'
 
-  /* ── No photos state ── */
+  /* ── No photos ── */
   if (photos.length === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6" style={{ filter: globalFilter }}>
@@ -222,8 +244,8 @@ export default function StudioPage({ navigate, bw }) {
         <div className="font-caveat text-xl text-ink3 text-center">No photos yet! Go snap some first ♡</div>
         <button
           onClick={() => navigate('booth')}
-          className="studio-goto-btn font-bangers border-[3px] border-ink bg-ink text-paper px-8 py-3 text-xl tracking-widest cursor-pointer rounded-lg"
-          style={{ boxShadow: '5px 5px 0 #555' }}
+          className="font-bangers border-[3px] border-ink bg-ink text-paper px-8 py-3 text-xl tracking-widest cursor-pointer rounded-lg"
+          style={{ boxShadow: '5px 5px 0 #555', maxWidth: 280, width: '100%' }}
         >
           ← GO TO BOOTH
         </button>
@@ -231,39 +253,37 @@ export default function StudioPage({ navigate, bw }) {
     )
   }
 
-  /* ── Shared button style helper ── */
-  const btnBase = (extra = {}) => ({
-    width: STRIP_W,
-    display: 'block',
-    textAlign: 'center',
-    boxSizing: 'border-box',
-    ...extra,
-  })
-
   return (
-    <main className="studio-main max-w-[1240px] mx-auto px-4 py-8" style={{ filter: globalFilter }}>
-
+    <main
+      className="studio-main max-w-[1240px] mx-auto px-4 py-8"
+      style={{ filter: globalFilter }}
+    >
       {/* Title */}
       <div className="text-center mb-8 animate-slide-u">
-        <div className="studio-title font-bangers text-[2.8rem] tracking-[6px] leading-none">🎞 STRIP STUDIO</div>
-        <div className="font-caveat text-ink3 mt-1">customize your strip ✦ drag stickers ✦ download ♡</div>
+        <div className="studio-title font-bangers text-[2.8rem] tracking-[6px] leading-none">
+          🎞 STRIP STUDIO
+        </div>
+        <div className="font-caveat text-ink3 mt-1">
+          customize your strip ✦ drag stickers ✦ download ♡
+        </div>
       </div>
 
       <div className="studio-layout flex gap-8 flex-wrap justify-center items-start">
 
-        {/* ══════════════════════════════════
-            Strip preview column
-        ══════════════════════════════════ */}
+        {/* ════════════════════════════════════
+            LEFT — Strip preview + actions
+            Fixed pixel width on every breakpoint.
+            Strip itself uses width:100% so it
+            fills this container exactly.
+        ════════════════════════════════════ */}
         <div
           className="studio-preview-col flex flex-col items-center gap-3 sticky top-24"
-          style={{ width: STRIP_W, minWidth: STRIP_W, flexShrink: 0 }}
+          style={{ width: STRIP_W, minWidth: STRIP_W }}
         >
-          <div className="studio-preview-label font-caveat text-xs text-ink3 text-center">
-            ← your strip preview →
-          </div>
+          <div className="font-caveat text-xs text-ink3 text-center">← your strip preview →</div>
 
-          {/* Strip — hard-locked width, auto height */}
-          <div style={{ width: STRIP_W, flexShrink: 0 }}>
+          {/* Strip fills the 200 px column, grows naturally in height */}
+          <div style={{ width: '100%' }}>
             <Strip
               stripRef={stripRef}
               photos={photos}
@@ -288,23 +308,27 @@ export default function StudioPage({ navigate, bw }) {
             />
           </div>
 
-          {/* ⬇ Download — same pixel width as strip */}
+          {/* Download — exactly same width as strip column */}
           <button
             onClick={downloadStrip}
             disabled={downloading}
-            className="studio-dl-btn font-bangers border-[3px] border-ink text-lg tracking-[4px] cursor-pointer transition-all duration-150"
-            style={btnBase({
+            className="font-bangers border-[3px] border-ink text-lg tracking-[4px] cursor-pointer transition-all duration-150"
+            style={{
+              width: '100%',
               padding: '0.6rem 0',
               background: downloaded ? '#2d7a3a' : '#111',
               color: 'white',
               borderRadius: 8,
               boxShadow: '4px 4px 0 #555',
               opacity: downloading ? 0.7 : 1,
-            })}
+              display: 'block',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+            }}
             onMouseEnter={e => {
               if (!downloading) {
-                e.currentTarget.style.transform  = 'translate(-2px,-2px)'
-                e.currentTarget.style.boxShadow  = '7px 7px 0 #555'
+                e.currentTarget.style.transform = 'translate(-2px,-2px)'
+                e.currentTarget.style.boxShadow = '7px 7px 0 #555'
               }
             }}
             onMouseLeave={e => {
@@ -315,31 +339,37 @@ export default function StudioPage({ navigate, bw }) {
             {downloading ? <DotLoader /> : downloaded ? '✓ SAVED!' : '⬇ DOWNLOAD'}
           </button>
 
-          {/* ✕ Clear stickers — same pixel width */}
+          {/* Clear stickers */}
           <button
             onClick={clearStickers}
-            className="studio-clear-btn font-caveat border-2 border-ink text-sm cursor-pointer transition-colors duration-150 hover:bg-blush"
-            style={btnBase({
+            className="font-caveat border-2 border-ink text-sm cursor-pointer transition-colors duration-150 hover:bg-blush"
+            style={{
+              width: '100%',
               padding: '0.32rem 0',
               background: '#f0ece0',
               borderRadius: 6,
-            })}
+              display: 'block',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+            }}
           >
             ✕ Clear all stickers
           </button>
 
-          <div
-            className="font-caveat text-[0.7rem] text-ink3 text-center"
-            style={{ width: STRIP_W }}
-          >
+          <div className="font-caveat text-[0.68rem] text-ink3 text-center" style={{ width: '100%' }}>
             double-click any sticker to remove it ♡
           </div>
         </div>
 
-        {/* ══════════════════════════════════
-            Edit panels column
-        ══════════════════════════════════ */}
-        <div className="studio-panels-col flex flex-col gap-4" style={{ flex: '1 1 280px', maxWidth: 560 }}>
+        {/* ════════════════════════════════════
+            RIGHT — Edit panels
+            min-width:0 prevents flex blowout
+            on narrow phones.
+        ════════════════════════════════════ */}
+        <div
+          className="studio-panels-col flex flex-col gap-4"
+          style={{ flex: '1 1 280px', maxWidth: 560, minWidth: 0 }}
+        >
 
           {/* Layout slots */}
           <ComicCard style={{ padding: '0.9rem', borderRadius: 4 }}>
@@ -373,7 +403,7 @@ export default function StudioPage({ navigate, bw }) {
                 <button
                   key={opt.value}
                   onClick={() => setBgColor(opt.value)}
-                  className="pill-btn font-caveat border-2 border-ink px-3 py-1 text-xs rounded-full cursor-pointer transition-all duration-150"
+                  className="font-caveat border-2 border-ink px-3 py-1 text-xs rounded-full cursor-pointer transition-all duration-150"
                   style={{
                     background:
                       opt.value === 'stripe' ? 'repeating-linear-gradient(45deg,#fff,#fff 3px,#eee 3px,#eee 6px)'
@@ -398,26 +428,34 @@ export default function StudioPage({ navigate, bw }) {
             <SectionHead>🎨 HEADER COLOURS</SectionHead>
             <div className="flex gap-6 flex-wrap">
               <div>
-                <div className="slider-label font-caveat text-xs text-ink3 mb-2">Background</div>
+                <div className="font-caveat text-xs text-ink3 mb-2">Background</div>
                 <div className="flex gap-2 flex-wrap">
                   {HEADER_BG_COLORS.map(c => (
-                    <div key={c} onClick={() => setHeaderBg(c)} className="swatch-dot" style={{
-                      width: 28, height: 28, background: c,
-                      border: headerBg === c ? '3px solid #111' : '1.5px solid #aaa',
-                      borderRadius: 5, cursor: 'pointer', transition: 'all 0.1s',
-                    }} />
+                    <div
+                      key={c}
+                      onClick={() => setHeaderBg(c)}
+                      style={{
+                        width: 28, height: 28, background: c,
+                        border: headerBg === c ? '3px solid #111' : '1.5px solid #aaa',
+                        borderRadius: 5, cursor: 'pointer', flexShrink: 0,
+                      }}
+                    />
                   ))}
                 </div>
               </div>
               <div>
-                <div className="slider-label font-caveat text-xs text-ink3 mb-2">Text colour</div>
+                <div className="font-caveat text-xs text-ink3 mb-2">Text colour</div>
                 <div className="flex gap-2 flex-wrap">
                   {HEADER_TEXT_COLORS.map(c => (
-                    <div key={c} onClick={() => setHeaderColor(c)} className="swatch-dot" style={{
-                      width: 28, height: 28, background: c,
-                      border: headerColor === c ? '3px solid #111' : '1.5px solid #aaa',
-                      borderRadius: 5, cursor: 'pointer', transition: 'all 0.1s',
-                    }} />
+                    <div
+                      key={c}
+                      onClick={() => setHeaderColor(c)}
+                      style={{
+                        width: 28, height: 28, background: c,
+                        border: headerColor === c ? '3px solid #111' : '1.5px solid #aaa',
+                        borderRadius: 5, cursor: 'pointer', flexShrink: 0,
+                      }}
+                    />
                   ))}
                 </div>
               </div>
@@ -436,7 +474,7 @@ export default function StudioPage({ navigate, bw }) {
             </div>
           </ComicCard>
 
-          {/* Spacing */}
+          {/* Spacing & style */}
           <ComicCard style={{ padding: '0.9rem', borderRadius: 4 }}>
             <SectionHead>📏 SPACING & STYLE</SectionHead>
             <SliderRow label="Photo gap" value={spacing} min={0} max={24} onChange={setSpacing} emoji="↕" />
@@ -447,7 +485,10 @@ export default function StudioPage({ navigate, bw }) {
           {/* Stickers */}
           <ComicCard style={{ padding: '0.9rem', borderRadius: 4 }}>
             <SectionHead>✨ STICKERS — click to add</SectionHead>
-            <div className="sticker-grid grid gap-1.5" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
+            <div
+              className="sticker-grid grid gap-1.5"
+              style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
+            >
               {STICKERS.map((s, i) => (
                 <button
                   key={i}
@@ -464,11 +505,11 @@ export default function StudioPage({ navigate, bw }) {
             </div>
           </ComicCard>
 
-          {/* Sticker fine-tune */}
+          {/* Sticker fine-tune — only shown when stickers exist */}
           {stickers.length > 0 && (
             <ComicCard style={{ padding: '0.9rem', borderRadius: 4 }}>
               <SectionHead>🔧 STICKER FINE-TUNING</SectionHead>
-              <div className="sticker-fine-tune flex flex-col gap-3">
+              <div className="flex flex-col gap-3">
                 {stickers.map(s => (
                   <div
                     key={s.id}
@@ -478,16 +519,22 @@ export default function StudioPage({ navigate, bw }) {
                     <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{s.emoji}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-caveat text-[0.72rem] text-ink3 w-8 flex-shrink-0">size</span>
-                        <input type="range" min={0.6} max={4.5} step={0.1} value={s.size}
-                          onChange={e => updateSticker(s.id, { size: Number(e.target.value) })} />
-                        <span className="font-bangers text-[0.7rem] w-7 text-right">{s.size.toFixed(1)}</span>
+                        <span className="font-caveat text-[0.72rem] text-ink3 flex-shrink-0" style={{ width: 30 }}>size</span>
+                        <input
+                          type="range" min={0.6} max={4.5} step={0.1} value={s.size}
+                          onChange={e => updateSticker(s.id, { size: Number(e.target.value) })}
+                          style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                        />
+                        <span className="font-bangers text-[0.7rem]" style={{ width: 30, textAlign: 'right', flexShrink: 0 }}>{s.size.toFixed(1)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-caveat text-[0.72rem] text-ink3 w-8 flex-shrink-0">rot</span>
-                        <input type="range" min={-180} max={180} step={1} value={s.rotate}
-                          onChange={e => updateSticker(s.id, { rotate: Number(e.target.value) })} />
-                        <span className="font-bangers text-[0.7rem] w-7 text-right">{s.rotate}°</span>
+                        <span className="font-caveat text-[0.72rem] text-ink3 flex-shrink-0" style={{ width: 30 }}>rot</span>
+                        <input
+                          type="range" min={-180} max={180} step={1} value={s.rotate}
+                          onChange={e => updateSticker(s.id, { rotate: Number(e.target.value) })}
+                          style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                        />
+                        <span className="font-bangers text-[0.7rem]" style={{ width: 30, textAlign: 'right', flexShrink: 0 }}>{s.rotate}°</span>
                       </div>
                     </div>
                     <button

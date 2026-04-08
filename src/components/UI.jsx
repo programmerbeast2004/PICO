@@ -48,6 +48,7 @@ export function TextInput({ label, value, onChange, placeholder }) {
       <div className="font-caveat text-xs text-ink3 mb-1">{label}</div>
       <input
         className="font-caveat border-2 border-ink w-full px-3 py-[5px] text-[0.95rem] bg-paper2 rounded outline-none font-semibold transition-all duration-150 focus:bg-white"
+        style={{ boxSizing: 'border-box', maxWidth: '100%' }}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
@@ -62,11 +63,24 @@ export function SliderRow({ label, value, min, max, step = 1, onChange, emoji })
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1">
         <span className="font-caveat text-sm text-ink3">{emoji} {label}</span>
-        <span className="font-bangers text-sm min-w-[38px] text-right">{value}{typeof value === 'number' && label.toLowerCase().includes('°') ? '°' : (label.toLowerCase().includes('%') ? '%' : '')}</span>
+        <span className="font-bangers text-sm min-w-[38px] text-right">{value}</span>
       </div>
       <input
-        type="range" min={min} max={max} step={step} value={value}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
         onChange={e => onChange(Number(e.target.value))}
+        style={{
+          width: '100%',        /* never overflows its card */
+          display: 'block',
+          boxSizing: 'border-box',
+          cursor: 'pointer',
+          /* taller hit-target for touch */
+          height: '28px',
+          accentColor: '#111',
+        }}
       />
     </div>
   )

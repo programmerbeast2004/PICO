@@ -1,6 +1,5 @@
 import Bunny from './Bunny.jsx'
 
-// Returns inline bg style for strip background option
 export function stripBgStyle(bgColor) {
   if (bgColor === 'stripe') return {
     backgroundImage: 'repeating-linear-gradient(45deg,#fff,#fff 5px,#f0ece0 5px,#f0ece0 10px)',
@@ -39,18 +38,20 @@ export default function Strip({
   onStickerDoubleClick,
   bw,
 }) {
-  const displayCount  = Math.min(slotCount, 4)
-  const activePhotos  = photos.slice(0, displayCount)
-  const bg            = stripBgStyle(bgColor)
-  const darkBg        = bgColor === '#111111'
-  const filter        = bw ? 'grayscale(1) contrast(1.1)' : 'none'
+  const displayCount = Math.min(slotCount, 4)
+  const activePhotos = photos.slice(0, displayCount)
+  const bg           = stripBgStyle(bgColor)
+  const darkBg       = bgColor === '#111111'
+  const filter       = bw ? 'grayscale(1) contrast(1.1)' : 'none'
 
   return (
     <div
       ref={stripRef}
       className="shadow-comic-lg"
       style={{
-        width: 210,
+        /* ── NO hardcoded width — fills whatever container StudioPage gives it ── */
+        width: '100%',
+        boxSizing: 'border-box',
         ...bg,
         border: '3px solid #111',
         padding: padding,
@@ -61,6 +62,8 @@ export default function Strip({
         borderRadius: radius,
         userSelect: 'none',
         filter,
+        /* clip stickers that wander outside the strip */
+        overflow: 'hidden',
       }}
     >
       {/* Header */}
@@ -86,6 +89,7 @@ export default function Strip({
             className={`relative overflow-hidden ${frame}`}
             style={{
               aspectRatio: '4/3',
+              width: '100%',
               borderRadius: radius > 0 ? Math.max(0, radius - 4) : 0,
             }}
           >
@@ -132,21 +136,28 @@ export default function Strip({
         </div>
       </div>
 
-      {/* Sticker layer */}
+      {/* Sticker layer
+          — touchAction is NOT set here so normal scroll still works.
+          — Each sticker only blocks its own touch via onTouchStart in StudioPage,
+            which sets dragInfo.current, which then lets onMove call preventDefault. */}
       {stickers.map(s => (
         <div
           key={s.id}
-          className={`sticker-item ${activeSticker === s.id ? 'ring-active' : ''}`}
           onMouseDown={e => onStickerMouseDown(e, s.id)}
           onTouchStart={e => onStickerTouchStart(e, s.id)}
           onDoubleClick={() => onStickerDoubleClick(s.id)}
           style={{
+            position: 'absolute',
             left: s.x,
             top: s.y,
             fontSize: `${s.size}rem`,
             transform: `rotate(${s.rotate}deg)`,
             zIndex: activeSticker === s.id ? 50 : 20,
-            touchAction: "none"
+            cursor: 'grab',
+            lineHeight: 1,
+            /* Do NOT set touchAction:"none" here — that blocks page scroll
+               even when the user isn't dragging this sticker.
+               Scroll blocking is handled precisely in StudioPage's onMove. */
           }}
         >
           {s.emoji}
