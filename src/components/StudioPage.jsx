@@ -179,8 +179,10 @@ export default function StudioPage({ navigate, bw }) {
       const y  = cy - rect.top  - dragInfo.current.offY
 
       setStickers(prev =>
-  prev.filter(Boolean).map(s =>
-    s.id === dragInfo.current.id ? { ...s, x, y } : s
+  (prev || []).filter(s => s && s.id).map(s =>
+    dragInfo.current && s.id === dragInfo.current.id
+      ? { ...s, x, y }
+      : s
   )
 )
     }
